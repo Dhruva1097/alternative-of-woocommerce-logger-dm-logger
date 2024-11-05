@@ -55,7 +55,7 @@ class dm_logger {
     private function format_message($level, $message, $context) {
         $date = date('Y-m-d H:i:s');
         $context_string = !empty($context) ? json_encode($context) : '';
-        return "[{$date}] {$level}: {$message} {$context_string}\n";
+        return "<span class='dm-logger-data'>[{$date}]</span> <span class='dm-logger-level'>{$level}</span>: <br><span class='dm-logger-message'>".esc_html($message)."</span> <span class='dm-logger-context'>{$context_string}</span>\n";
     }
 
     // Write a message to the log file
@@ -80,6 +80,59 @@ function custom_logger_admin_menu() {
         20
     );
 }
+// Enqueue admin styles for Custom Logger
+add_action('admin_enqueue_scripts', 'custom_logger_enqueue_admin_styles');
+function custom_logger_enqueue_admin_styles($hook) {
+    // Only enqueue on the custom logs page
+    if ($hook !== 'toplevel_page_custom-logs') {
+        return;
+    }
+
+   $version = filemtime(plugin_dir_path(__FILE__) . 'admin-style.css');
+
+    wp_enqueue_style(
+        'custom-logger-admin-style',
+        plugins_url('admin-style.css', __FILE__),
+        array(),
+        $version
+    );
+	// Enqueue Prism.js for syntax highlighting
+	wp_enqueue_script('prism-js', 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism.min.js', array(), null, false);
+	wp_enqueue_script('prism-js-json', 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/prism-json.min.js', array(), null, false);
+    wp_enqueue_style('prism-css', 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism.min.css');
+
+    // Enqueue custom JS for JSON prettifying
+    $script = '
+	jQuery(document).ready(function ($) {
+    $(".dm-logger-message").each(function () {
+        // Get the raw HTML content of the element
+        const jsonString = $(this).html().trim(); // Use .html() and trim whitespace
+
+        // Attempt to parse the JSON string
+        try {
+            const parsedJson = JSON.parse(jsonString); // Parse the JSON
+
+            // If parsing is successful, stringify it with indentation for better readability
+            const highlightedJson = Prism.highlight(
+                JSON.stringify(parsedJson, null, 2), // Format JSON for pretty printing
+                Prism.languages.js, // Specify the language for highlighting
+                "json" // Specify the language name
+            );
+
+            // Update the HTML with the highlighted JSON
+            $(this).html(highlightedJson);
+        } catch (e) {
+            console.error("Invalid JSON:", e); // Log the error for debugging
+            // Optionally, display an error message in the HTML
+        }
+    });
+});
+
+
+	';
+    wp_add_inline_script('prism-js', $script);
+}
+
 
 // Display Logs in the Admin Page
 function display_custom_logs() {
@@ -90,12 +143,12 @@ function display_custom_logs() {
     global $dm_logger;
     $logs = $dm_logger->get_logs();
 
-    echo '<div class="wrap">';
-    echo '<h1>Custom Logs</h1>';
-    echo '<pre style="background: #f1f1f1; padding: 15px; max-height: 500px; overflow-y: scroll;">';
+    echo '<div class="wrap dm-logger-wrap">';
+    echo '<h1>DM Logger</h1>';
+    echo '<pre class="dm-logger-pre">';
     if ($logs) {
         foreach ($logs as $log) {
-            echo esc_html($log);
+            echo $log;
         }
     } else {
         echo 'No logs available.';

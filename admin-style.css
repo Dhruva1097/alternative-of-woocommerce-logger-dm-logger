@@ -1,0 +1,7 @@
+pre.dm-logger-pre {
+    height: auto;
+    max-width: 100%;
+    overflow-x: scroll;
+    padding: 20px;
+	background:#fff;
+}
